@@ -1,0 +1,5 @@
+developer_id,total_sessions,coding_hours,avg_focus,avg_cognitive_load,total_interruptions,total_context_switches,avg_coding_activity
+DEV001,31,50.72,3.26,3.0,96,178,72.81
+DEV002,36,55.6,3.0,2.86,146,179,70.69
+DEV003,19,25.08,3.16,3.21,78,101,68.22
+DEV004,34,45.5,3.35,3.06,127,205,66.84
