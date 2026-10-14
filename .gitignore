@@ -4,3 +4,7 @@ __pycache__/
 *.pyc
 .env
 .DS_Store
+
+# Local AI assistant configuration
+.agents/
+.claude/
