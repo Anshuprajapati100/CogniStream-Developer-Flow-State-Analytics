@@ -15,3 +15,7 @@ __pycache__/
 
 # Local SQLite database
 data/*.db
+
+# Local dashboard and database backups
+dashboard/app_v*_backup.py
+database/db_backup.py
