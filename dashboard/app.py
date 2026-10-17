@@ -6,6 +6,16 @@ import streamlit as st
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.insights import generate_insights
+from src.live_data import load_combined_data
+from database.db import (
+    initialize_database,
+    add_developer,
+    get_developers,
+    add_session,
+    get_sessions,
+    delete_developer,
+    delete_session,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -19,17 +29,11 @@ st.set_page_config(
 )
 
 
-@st.cache_data
 def load_data():
-    if not DATA_FILE.exists():
-        return None
-
-    df = pd.read_csv(DATA_FILE)
-    df["session_date"] = pd.to_datetime(df["session_date"])
-
-    return df
+    return load_combined_data()
 
 
+initialize_database()
 df = load_data()
 
 st.title("CogniStream")
@@ -110,13 +114,14 @@ st.divider()
 
 # TABS
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
     [
         "Overview",
         "Developer Analytics",
         "Flow & Cognitive Load",
         "Session Explorer",
         "Smart Insights",
+        "Developer Management",
     ]
 )
 
@@ -346,6 +351,268 @@ with tab5:
         "The chart illustrates a relationship in synthetic data "
         "and does not demonstrate a real-world causal effect."
     )
+
+
+
+# DEVELOPER MANAGEMENT
+
+with tab6:
+
+    st.subheader("Developer Management")
+
+    management_tab1, management_tab2, management_tab3 = st.tabs(
+        ["Add Developer", "Delete Developer", "Manage Sessions"]
+    )
+
+    with management_tab1:
+
+        st.markdown("### Register New Developer")
+
+        with st.form("register_developer"):
+            new_id = st.text_input(
+                "Developer ID",
+                placeholder="DEV006"
+            )
+
+            submitted = st.form_submit_button("Add Developer")
+
+        if submitted:
+            try:
+                add_developer(new_id)
+                st.success("Developer registered successfully!")
+                st.rerun()
+            except Exception as error:
+                st.error(str(error))
+
+        st.markdown("### Registered Developers")
+
+        registered = get_developers()
+
+        if registered:
+            st.dataframe(
+                pd.DataFrame({"Developer ID": registered}),
+                hide_index=True,
+                width="stretch"
+            )
+        else:
+            st.info("No registered developers.")
+
+    with management_tab2:
+
+        st.markdown("### Delete Developer")
+
+        registered = get_developers()
+
+        if registered:
+
+            developer_to_delete = st.selectbox(
+                "Select Developer",
+                registered,
+                key="delete_developer_select"
+            )
+
+            with st.form("delete_developer_form"):
+
+                confirm = st.checkbox(
+                    "I understand this developer will be deleted."
+                )
+
+                delete_clicked = st.form_submit_button(
+                    "Delete Developer"
+                )
+
+            if delete_clicked:
+
+                if not confirm:
+                    st.warning("Please confirm deletion.")
+                else:
+                    try:
+                        delete_developer(developer_to_delete)
+                        st.success("Developer deleted successfully!")
+                        st.rerun()
+                    except Exception as error:
+                        st.error(str(error))
+
+        else:
+            st.info("No developers available for deletion.")
+
+    with management_tab3:
+
+        st.markdown("### Saved Coding Sessions")
+
+        saved_sessions = get_sessions()
+
+        if saved_sessions:
+
+            sessions_df = pd.DataFrame(saved_sessions)
+
+            st.dataframe(
+                sessions_df,
+                width="stretch",
+                hide_index=True
+            )
+
+            session_ids = sessions_df["session_id"].tolist()
+
+            session_to_delete = st.selectbox(
+                "Select Session to Delete",
+                session_ids
+            )
+
+            with st.form("delete_session_form"):
+
+                confirm_session = st.checkbox(
+                    "I understand this session will be deleted."
+                )
+
+                delete_session_clicked = st.form_submit_button(
+                    "Delete Session"
+                )
+
+            if delete_session_clicked:
+
+                if not confirm_session:
+                    st.warning("Please confirm deletion.")
+                else:
+                    try:
+                        delete_session(session_to_delete)
+                        st.success("Session deleted successfully!")
+                        st.rerun()
+                    except Exception as error:
+                        st.error(str(error))
+
+        else:
+            st.info("No manually saved sessions available.")
+
+
+
+# ADD CODING SESSION
+with tab6:
+    st.divider()
+    st.subheader("Add Coding Session")
+
+    registered = get_developers()
+
+    if not registered:
+        st.info("Register a developer before adding sessions.")
+    else:
+        with st.form("add_coding_session_form"):
+            developer = st.selectbox(
+                "Developer",
+                registered,
+                key="session_developer",
+            )
+
+            session_id = st.text_input(
+                "Unique Session ID",
+                placeholder="MAN001",
+            )
+
+            session_date = st.date_input(
+                "Session Date",
+                key="new_session_date",
+            )
+
+            duration = st.number_input(
+                "Session Duration (minutes)",
+                min_value=1,
+                value=120,
+                step=1,
+            )
+
+            coding = st.number_input(
+                "Coding Time (minutes)",
+                min_value=0,
+                value=90,
+                step=1,
+            )
+
+            idle = st.number_input(
+                "Idle Time (minutes)",
+                min_value=0,
+                value=15,
+                step=1,
+            )
+
+            other = st.number_input(
+                "Other Work Time (minutes)",
+                min_value=0,
+                value=15,
+                step=1,
+            )
+
+            interruptions = st.number_input(
+                "Interruptions",
+                min_value=0,
+                value=2,
+                step=1,
+            )
+
+            switches = st.number_input(
+                "Context Switches",
+                min_value=0,
+                value=3,
+                step=1,
+            )
+
+            tasks = st.number_input(
+                "Tasks Completed",
+                min_value=0,
+                value=1,
+                step=1,
+            )
+
+            focus = st.slider(
+                "Focus Rating",
+                1, 5, 3,
+            )
+
+            cognitive_load = st.slider(
+                "Cognitive Load Rating",
+                1, 5, 3,
+            )
+
+            save_session = st.form_submit_button(
+                "Save Coding Session"
+            )
+
+        if save_session:
+            if not session_id.strip():
+                st.error("Session ID is required.")
+
+            elif coding + idle + other != duration:
+                st.error(
+                    "Coding Time + Idle Time + Other Work Time "
+                    "must equal Session Duration."
+                )
+
+            elif session_id.strip() in load_combined_data()[
+                "session_id"
+            ].astype(str).values:
+                st.error("Session ID already exists.")
+
+            else:
+                session = {
+                    "session_id": session_id.strip(),
+                    "developer_id": developer,
+                    "session_date": session_date.isoformat(),
+                    "session_duration_min": int(duration),
+                    "coding_time_min": int(coding),
+                    "idle_time_min": int(idle),
+                    "other_work_time_min": int(other),
+                    "interruptions": int(interruptions),
+                    "context_switches": int(switches),
+                    "tasks_completed": int(tasks),
+                    "focus_rating": int(focus),
+                    "cognitive_load_rating": int(cognitive_load),
+                }
+
+                try:
+                    add_session(session)
+                    st.success("Coding session saved successfully!")
+                    st.rerun()
+                except Exception as error:
+                    st.error(f"Could not save session: {error}")
 
 
 st.divider()

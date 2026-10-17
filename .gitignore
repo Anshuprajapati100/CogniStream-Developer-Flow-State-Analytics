@@ -12,3 +12,6 @@ __pycache__/
 # Local AI assistant configuration
 .agents/
 .claude/
+
+# Local SQLite database
+data/*.db
