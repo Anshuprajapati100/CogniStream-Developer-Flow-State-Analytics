@@ -181,7 +181,7 @@ All results are based on synthetic data.
 
 ## Dashboard Features
 
-CogniStream Dashboard V2 provides four sections:
+The original dashboard sections, now included in Dashboard V4, are:
 
 ### 1. Overview
 - Key performance indicators
@@ -260,7 +260,7 @@ http://localhost:8501
 
 ## Testing
 
-The project includes 14 automated pipeline validation tests.
+The project includes 37 automated tests across the data pipeline, Smart Insights, and SQLite database.
 
 Run:
 
@@ -271,14 +271,14 @@ python -m unittest discover -s tests -v
 Latest confirmed test result:
 
 ```text
-Ran 14 tests
+Ran 37 tests
 
 OK
 ```
 
 These tests cover generated data integrity, session consistency, valid ratings, and output classifications.
 
-Additional unit and dashboard interaction testing remains part of final verification.
+Automated pipeline, Smart Insights, and SQLite database tests have passed. Interactive dashboard verification remains an ongoing activity.
 
 ## Limitations
 
@@ -322,3 +322,80 @@ CogniStream demonstrates an end-to-end developer activity analytics workflow usi
 It provides data generation, validation, exploratory analytics, experimental flow indicators, cognitive load rating analysis, interactive visualizations, and report generation.
 
 The current implementation is a synthetic-data prototype intended for learning, experimentation, and further evaluation.
+---
+
+## Dashboard V4 Features
+
+CogniStream Dashboard V4 includes six interactive sections:
+
+1. Overview
+2. Developer Analytics
+3. Flow & Cognitive Load
+4. Session Explorer
+5. Smart Insights
+6. Developer Management
+
+### SQLite Database Integration
+
+The project uses SQLite for managing developers and coding sessions.
+
+The database contains two tables:
+
+- `developers`: Stores registered developer IDs.
+- `sessions`: Stores manually entered coding sessions.
+
+The database supports adding and deleting developers, adding and deleting sessions, validating input values, and preventing duplicate IDs.
+
+Developers with existing sessions cannot be deleted until their sessions are removed.
+
+### Combined Data Analytics
+
+The project combines synthetic CSV data with manually entered SQLite sessions using `src/live_data.py`.
+
+The original synthetic dataset contains 120 sessions across four developers.
+
+Dashboard statistics update when manual sessions are added or deleted.
+
+### Automated Testing
+
+The project includes 37 automated tests:
+
+| Test Category | Tests |
+|---|---:|
+| Data Pipeline | 14 |
+| Smart Insights | 7 |
+| SQLite Database | 16 |
+| **Total** | **37** |
+
+Run tests:
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+Latest verified result:
+
+```text
+Ran 37 tests
+
+OK
+```
+
+### Current Demonstration Results
+
+The latest verified local data contains:
+
+- Total Sessions: 121
+- Developers with Sessions: 5
+- Total Coding Hours: 178.40
+- Manual Sessions: 1
+
+These values may change as developers and sessions are managed.
+
+### Limitations
+
+The project uses synthetic data and experimental flow indicators.
+
+The flow indicator is not a scientifically validated psychological measurement.
+
+SQLite stores manual data locally, and real-time developer monitoring is not implemented.
