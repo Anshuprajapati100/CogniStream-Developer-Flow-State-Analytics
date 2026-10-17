@@ -3,6 +3,9 @@ from pathlib import Path
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.insights import generate_insights
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -107,12 +110,13 @@ st.divider()
 
 # TABS
 
-tab1, tab2, tab3, tab4 = st.tabs(
+tab1, tab2, tab3, tab4, tab5 = st.tabs(
     [
         "Overview",
         "Developer Analytics",
         "Flow & Cognitive Load",
         "Session Explorer",
+        "Smart Insights",
     ]
 )
 
@@ -300,6 +304,48 @@ with tab4:
     )
 
     st.caption(f"Displaying {len(filtered)} sessions.")
+
+
+
+# SMART INSIGHTS
+
+with tab5:
+    st.subheader("Smart Developer Activity Insights")
+
+    st.caption(
+        "Automatically generated descriptive insights from the "
+        "selected synthetic developer sessions."
+    )
+
+    insights = generate_insights(filtered)
+
+    for number, insight in enumerate(insights, start=1):
+        st.markdown(f"**{number}.** {insight}")
+
+    st.divider()
+
+    st.subheader("Focus vs Cognitive Load")
+
+    fig_focus = px.scatter(
+        filtered,
+        x="cognitive_load_rating",
+        y="focus_rating",
+        color="developer_id",
+        hover_data=["session_id"],
+        title="Simulated Focus and Cognitive Load Ratings",
+        labels={
+            "focus_rating": "Focus Rating (1–5)",
+            "cognitive_load_rating": "Cognitive Load Rating (1–5)"
+        },
+    )
+
+    st.plotly_chart(fig_focus, width="stretch")
+
+    st.info(
+        "These are simulated self-report ratings. "
+        "The chart illustrates a relationship in synthetic data "
+        "and does not demonstrate a real-world causal effect."
+    )
 
 
 st.divider()
