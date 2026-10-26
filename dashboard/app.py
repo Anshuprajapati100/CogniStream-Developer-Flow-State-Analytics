@@ -33,7 +33,13 @@ def load_data():
     return load_combined_data()
 
 
-initialize_database()
+@st.cache_resource
+def setup_database():
+    initialize_database()
+    return True
+
+
+setup_database()
 df = load_data()
 
 st.title("CogniStream")
@@ -56,7 +62,8 @@ if df is None:
 
 st.sidebar.title("CogniStream")
 st.sidebar.header("Filters")
-
+if st.sidebar.button("Refresh Analytics", use_container_width=True):
+    st.rerun()
 developers = sorted(df["developer_id"].unique().tolist())
 
 selected_developers = st.sidebar.multiselect(
