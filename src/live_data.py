@@ -40,6 +40,9 @@ def prepare_manual_sessions(sessions):
         df["context_switches"] / duration * 60
     )
 
+    # Keep the column name consistent with synthetic data.
+    df["switches_per_hour"] = df["context_switches_per_hour"]
+
     df["coding_component"] = (
         df["coding_activity_ratio"].clip(0, 100)
     )

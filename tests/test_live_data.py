@@ -63,6 +63,11 @@ class TestLiveDataIntegration(unittest.TestCase):
             result.iloc[0]["context_switches_per_hour"],
             3.0,
         )
+        self.assertIn("switches_per_hour", result.columns)
+        self.assertAlmostEqual(
+            result.iloc[0]["switches_per_hour"],
+            result.iloc[0]["context_switches_per_hour"],
+        )
         self.assertAlmostEqual(
             result.iloc[0]["flow_indicator_score"],
             69.0,
