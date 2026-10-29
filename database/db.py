@@ -1,3 +1,5 @@
+from numbers import Integral
+from datetime import date
 import sqlite3
 from pathlib import Path
 
@@ -81,6 +83,11 @@ def get_developers():
 
 
 def add_session(session):
+    """Validate and save one developer session."""
+
+    if not isinstance(session, dict):
+        raise ValueError("Session must be provided as a dictionary.")
+
     required = [
         "session_id",
         "developer_id",
@@ -97,11 +104,96 @@ def add_session(session):
     ]
 
     missing = [key for key in required if key not in session]
-
     if missing:
         raise ValueError(f"Missing session fields: {missing}")
 
+    # Work on a copy rather than modifying the caller's dictionary.
+    session = dict(session)
+
+    for field, label in (
+        ("session_id", "Session ID"),
+        ("developer_id", "Developer ID"),
+    ):
+        value = session[field]
+        if not isinstance(value, str):
+            raise ValueError(f"{label} must be text.")
+
+        value = value.strip().upper()
+        if not value:
+            raise ValueError(f"{label} cannot be empty.")
+
+        session[field] = value
+
+    session_date = session["session_date"]
+    try:
+        if not isinstance(session_date, str):
+            raise ValueError
+        parsed_date = date.fromisoformat(session_date)
+        if parsed_date.isoformat() != session_date:
+            raise ValueError
+    except (TypeError, ValueError):
+        raise ValueError(
+            "session_date must be a valid date in YYYY-MM-DD format."
+        ) from None
+
+    integer_fields = [
+        "session_duration_min",
+        "coding_time_min",
+        "idle_time_min",
+        "other_work_time_min",
+        "interruptions",
+        "context_switches",
+        "tasks_completed",
+        "focus_rating",
+        "cognitive_load_rating",
+    ]
+
+    for field in integer_fields:
+        value = session[field]
+        if isinstance(value, bool) or not isinstance(value, Integral):
+            raise ValueError(f"{field} must be a whole number.")
+        session[field] = int(value)
+
+    if session["session_duration_min"] <= 0:
+        raise ValueError("session_duration_min must be greater than 0.")
+
+    nonnegative_fields = [
+        "coding_time_min",
+        "idle_time_min",
+        "other_work_time_min",
+        "interruptions",
+        "context_switches",
+        "tasks_completed",
+    ]
+
+    for field in nonnegative_fields:
+        if session[field] < 0:
+            raise ValueError(f"{field} cannot be negative.")
+
+    total_time = (
+        session["coding_time_min"]
+        + session["idle_time_min"]
+        + session["other_work_time_min"]
+    )
+
+    if total_time != session["session_duration_min"]:
+        raise ValueError(
+            "Time components must add up to session_duration_min."
+        )
+
+    for field in ("focus_rating", "cognitive_load_rating"):
+        if not 1 <= session[field] <= 5:
+            raise ValueError(f"{field} must be between 1 and 5.")
+
     with get_connection() as conn:
+        developer_exists = conn.execute(
+            "SELECT 1 FROM developers WHERE developer_id = ?",
+            (session["developer_id"],),
+        ).fetchone()
+
+        if not developer_exists:
+            raise ValueError("Developer not found.")
+
         conn.execute("""
             INSERT INTO sessions (
                 session_id, developer_id, session_date,

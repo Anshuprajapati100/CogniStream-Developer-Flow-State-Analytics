@@ -83,25 +83,25 @@ class TestCogniStreamDatabase(unittest.TestCase):
         db.add_developer("DEVTEST")
         session = self.sample_session()
         session["session_duration_min"] = 0
-        with self.assertRaises(sqlite3.IntegrityError):
+        with self.assertRaises(ValueError):
             db.add_session(session)
 
     def test_invalid_time_total(self):
         db.add_developer("DEVTEST")
         session = self.sample_session()
         session["coding_time_min"] = 100
-        with self.assertRaises(sqlite3.IntegrityError):
+        with self.assertRaises(ValueError):
             db.add_session(session)
 
     def test_invalid_focus_rating(self):
         db.add_developer("DEVTEST")
         session = self.sample_session()
         session["focus_rating"] = 6
-        with self.assertRaises(sqlite3.IntegrityError):
+        with self.assertRaises(ValueError):
             db.add_session(session)
 
     def test_unknown_developer_session(self):
-        with self.assertRaises(sqlite3.IntegrityError):
+        with self.assertRaises(ValueError):
             db.add_session(self.sample_session())
 
     def test_protect_developer_with_sessions(self):
@@ -119,6 +119,55 @@ class TestCogniStreamDatabase(unittest.TestCase):
     def test_delete_unknown_session(self):
         with self.assertRaises(ValueError):
             db.delete_session("UNKNOWN")
+
+
+
+    def test_empty_session_id(self):
+        session = self.sample_session(session_id=" ")
+        with self.assertRaisesRegex(ValueError, "Session ID cannot be empty"):
+            db.add_session(session)
+
+    def test_empty_session_developer_id(self):
+        session = self.sample_session()
+        session["developer_id"] = " "
+        with self.assertRaisesRegex(ValueError, "Developer ID cannot be empty"):
+            db.add_session(session)
+
+    def test_invalid_session_date(self):
+        db.add_developer("DEVTEST")
+        session = self.sample_session()
+        session["session_date"] = "2026-02-30"
+        with self.assertRaisesRegex(ValueError, "valid date"):
+            db.add_session(session)
+
+    def test_negative_event_counts(self):
+        db.add_developer("DEVTEST")
+        for field in ("interruptions", "context_switches", "tasks_completed"):
+            with self.subTest(field=field):
+                session = self.sample_session(session_id=f"TEST_{field}")
+                session[field] = -1
+                with self.assertRaisesRegex(ValueError, "cannot be negative"):
+                    db.add_session(session)
+
+    def test_non_integer_event_count(self):
+        db.add_developer("DEVTEST")
+        session = self.sample_session()
+        session["interruptions"] = 1.5
+        with self.assertRaisesRegex(ValueError, "whole number"):
+            db.add_session(session)
+
+    def test_invalid_cognitive_load_rating(self):
+        db.add_developer("DEVTEST")
+        session = self.sample_session()
+        session["cognitive_load_rating"] = 0
+        with self.assertRaisesRegex(ValueError, "between 1 and 5"):
+            db.add_session(session)
+
+    def test_session_id_normalization(self):
+        db.add_developer("DEVTEST")
+        session = self.sample_session(session_id=" test002 ")
+        db.add_session(session)
+        self.assertEqual(db.get_sessions()[0]["session_id"], "TEST002")
 
 
 if __name__ == "__main__":
