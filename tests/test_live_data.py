@@ -1,3 +1,4 @@
+
 import tempfile
 import unittest
 from pathlib import Path
@@ -139,6 +140,47 @@ class TestLiveDataIntegration(unittest.TestCase):
             ):
                 live_data.load_combined_data()
 
+    def test_duplicate_session_ids_are_rejected_case_insensitive(self):
+        self.write_synthetic_csv(session_id=" man001 ")
+
+        with (
+            patch.object(live_data, "CSV_FILE", self.csv_path),
+            patch.object(
+                live_data,
+                "get_sessions",
+                return_value=[self.session],
+            ),
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "Duplicate session IDs"
+            ):
+                live_data.load_combined_data()
+
+    def test_duplicate_ids_inside_synthetic_data_are_rejected(self):
+        self.write_synthetic_csv(session_id="S0001")
+
+        synthetic = pd.read_csv(self.csv_path)
+        duplicate = synthetic.copy()
+        duplicate["session_id"] = " s0001 "
+
+        pd.concat(
+            [synthetic, duplicate],
+            ignore_index=True,
+        ).to_csv(self.csv_path, index=False)
+
+        with (
+            patch.object(live_data, "CSV_FILE", self.csv_path),
+            patch.object(
+                live_data,
+                "get_sessions",
+                return_value=[],
+            ),
+        ):
+            with self.assertRaisesRegex(
+                ValueError, "Duplicate session IDs"
+            ):
+                live_data.load_combined_data()
+
     def test_invalid_session_duration_is_rejected(self):
         invalid = self.session.copy()
         invalid["session_duration_min"] = 0
@@ -170,7 +212,8 @@ class TestLiveDataIntegration(unittest.TestCase):
             ),
         ):
             with self.assertRaisesRegex(
-                FileNotFoundError, "Run python src/cognitive_load.py first"
+                FileNotFoundError,
+                "Run python src/cognitive_load.py first",
             ):
                 live_data.load_combined_data()
 

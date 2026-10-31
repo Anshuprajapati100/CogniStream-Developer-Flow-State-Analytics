@@ -1,3 +1,4 @@
+
 from pathlib import Path
 
 import pandas as pd
@@ -83,6 +84,32 @@ def prepare_manual_sessions(sessions):
     return df
 
 
+def _validate_session_ids(df):
+    """Validate that session IDs are present and unique."""
+
+    if "session_id" not in df.columns:
+        raise ValueError("Session records must include session_id.")
+
+    normalized_ids = (
+        df["session_id"]
+        .astype("string")
+        .str.strip()
+        .str.upper()
+    )
+
+    if (normalized_ids.isna() | normalized_ids.eq("")).any():
+        raise ValueError("Session IDs must not be empty.")
+
+    duplicates = normalized_ids[
+        normalized_ids.duplicated(keep=False)
+    ].unique().tolist()
+
+    if duplicates:
+        raise ValueError(
+            f"Duplicate session IDs: {sorted(duplicates)}"
+        )
+
+
 def load_combined_data():
     """Combine existing synthetic records and manual SQLite sessions."""
 
@@ -92,25 +119,17 @@ def load_combined_data():
         )
 
     synthetic = pd.read_csv(CSV_FILE)
-
     manual = prepare_manual_sessions(get_sessions())
 
     if manual.empty:
         combined = synthetic.copy()
     else:
-        duplicates = set(synthetic["session_id"]) & set(
-            manual["session_id"]
-        )
-
-        if duplicates:
-            raise ValueError(
-                f"Duplicate session IDs: {sorted(duplicates)}"
-            )
-
         combined = pd.concat(
             [synthetic, manual],
             ignore_index=True,
         )
+
+    _validate_session_ids(combined)
 
     combined["session_date"] = pd.to_datetime(
         combined["session_date"]

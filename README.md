@@ -212,31 +212,26 @@ Clone the repository:
 ```bash
 git clone https://github.com/Anshuprajapati100/CogniStream-Developer-Flow-State-Analytics.git
 ```
-
 Enter the project directory:
 
 ```bash
 cd CogniStream-Developer-Flow-State-Analytics
 ```
-
 Create a virtual environment using Python 3.12:
 
 ```bash
 python3.12 -m venv .venv
 ```
-
 Activate it on macOS or Linux:
 
 ```bash
 source .venv/bin/activate
 ```
-
 Install dependencies:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
-
 ## Run the Analytics Pipeline
 
 Run these commands in order:
@@ -247,7 +242,6 @@ python src/data_cleaning.py
 python src/analytics.py
 python src/cognitive_load.py
 ```
-
 ## Run the Dashboard
 
 ```bash
@@ -260,25 +254,43 @@ http://localhost:8501
 
 ## Testing
 
-The project includes 37 automated tests across the data pipeline, Smart Insights, and SQLite database.
+The project includes 54 automated tests covering the data pipeline, Smart Insights, SQLite database operations, and live-data integration.
 
-Run:
+Run the complete test suite:
 
 ```bash
-python -m unittest discover -s tests -v
+uv run python -m unittest discover -s tests -v
 ```
+### Test Coverage
 
-Latest confirmed test result:
+| Test Category | Tests |
+|---|---:|
+| Data Pipeline | 14 |
+| Smart Insights | 7 |
+| SQLite Database | 23 |
+| Live Data Integration | 10 |
+| **Total** | **54** |
+
+### Latest Verified Test Result
 
 ```text
-Ran 37 tests
+Ran 54 tests
 
 OK
 ```
+The tests cover:
 
-These tests cover generated data integrity, session consistency, valid ratings, and output classifications.
+- Dataset integrity and validation
+- Session time consistency
+- Focus and cognitive load rating validation
+- Database operations and duplicate record handling
+- Manual and synthetic session integration
+- Case-insensitive duplicate session ID validation
+- Flow indicator calculations
+- Smart Insights generation
 
-Automated pipeline, Smart Insights, and SQLite database tests have passed. Interactive dashboard verification remains an ongoing activity.
+Automated tests have passed successfully. Interactive dashboard verification remains a separate validation activity.
+
 
 ## Limitations
 
@@ -356,31 +368,31 @@ The original synthetic dataset contains 120 sessions across four developers.
 
 Dashboard statistics update when manual sessions are added or deleted.
 
+
 ### Automated Testing
 
-The project includes 37 automated tests:
+The project includes 54 automated tests covering four major areas:
 
 | Test Category | Tests |
 |---|---:|
 | Data Pipeline | 14 |
 | Smart Insights | 7 |
-| SQLite Database | 16 |
-| **Total** | **37** |
+| SQLite Database | 23 |
+| Live Data Integration | 10 |
+| **Total** | **54** |
 
 Run tests:
 
 ```bash
-python -m unittest discover -s tests -v
+uv run python -m unittest discover -s tests -v
 ```
-
 Latest verified result:
 
 ```text
-Ran 37 tests
+Ran 54 tests
 
 OK
 ```
-
 ### Current Demonstration Results
 
 The latest verified local data contains:
