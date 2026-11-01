@@ -1,6 +1,8 @@
 import pandas as pd
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -14,10 +16,64 @@ def load_data():
     return pd.read_csv(DATA_FILE)
 
 
+
 def calculate_metrics(df):
-    """Calculate developer activity metrics."""
+    """Validate session data and calculate developer activity metrics."""
+
+    required_columns = [
+        "session_duration_min",
+        "coding_time_min",
+        "interruptions",
+        "context_switches",
+    ]
+
+    if df.empty:
+        raise ValueError("Analytics input must contain at least one session.")
+
+    missing_columns = [
+        column for column in required_columns
+        if column not in df.columns
+    ]
+
+    if missing_columns:
+        raise ValueError(
+            f"Missing required columns: {missing_columns}"
+        )
 
     df = df.copy()
+
+    for column in required_columns:
+        df[column] = pd.to_numeric(
+            df[column],
+            errors="coerce",
+        )
+
+        values = df[column].to_numpy(dtype=float)
+
+        if not np.isfinite(values).all():
+            raise ValueError(
+                f"{column} must contain finite numeric values."
+            )
+
+    if (df["session_duration_min"] <= 0).any():
+        raise ValueError("Session duration must be positive.")
+
+    if (
+        (df["coding_time_min"] < 0)
+        | (
+            df["coding_time_min"]
+            > df["session_duration_min"]
+        )
+    ).any():
+        raise ValueError(
+            "Coding time must be between zero and session duration."
+        )
+
+    for column in ["interruptions", "context_switches"]:
+        if (df[column] < 0).any():
+            raise ValueError(
+                f"{column} must not contain negative values."
+            )
 
     df["coding_activity_ratio"] = (
         df["coding_time_min"]

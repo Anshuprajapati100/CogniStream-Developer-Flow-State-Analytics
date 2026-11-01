@@ -254,7 +254,7 @@ http://localhost:8501
 
 ## Testing
 
-The project includes 54 automated tests covering the data pipeline, Smart Insights, SQLite database operations, and live-data integration.
+The project includes 63 automated tests covering analytics validation, the data pipeline, Smart Insights, SQLite database operations, and live-data integration.
 
 Run the complete test suite:
 
@@ -269,12 +269,13 @@ uv run python -m unittest discover -s tests -v
 | Smart Insights | 7 |
 | SQLite Database | 23 |
 | Live Data Integration | 10 |
-| **Total** | **54** |
+| Analytics Validation | 9 |
+| **Total** | **63** |
 
 ### Latest Verified Test Result
 
 ```text
-Ran 54 tests
+Ran 63 tests
 
 OK
 ```
@@ -288,6 +289,7 @@ The tests cover:
 - Case-insensitive duplicate session ID validation
 - Flow indicator calculations
 - Smart Insights generation
+- Analytics input validation, including missing, non-numeric, infinite, and invalid activity values
 
 Automated tests have passed successfully. Interactive dashboard verification remains a separate validation activity.
 
@@ -371,7 +373,7 @@ Dashboard statistics update when manual sessions are added or deleted.
 
 ### Automated Testing
 
-The project includes 54 automated tests covering four major areas:
+The project includes 63 automated tests covering five major areas:
 
 | Test Category | Tests |
 |---|---:|
@@ -379,7 +381,8 @@ The project includes 54 automated tests covering four major areas:
 | Smart Insights | 7 |
 | SQLite Database | 23 |
 | Live Data Integration | 10 |
-| **Total** | **54** |
+| Analytics Validation | 9 |
+| **Total** | **63** |
 
 Run tests:
 
@@ -389,7 +392,7 @@ uv run python -m unittest discover -s tests -v
 Latest verified result:
 
 ```text
-Ran 54 tests
+Ran 63 tests
 
 OK
 ```
