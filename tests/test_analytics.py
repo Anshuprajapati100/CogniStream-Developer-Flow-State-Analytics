@@ -1,4 +1,3 @@
-
 import unittest
 
 import pandas as pd
@@ -84,7 +83,28 @@ class TestAnalyticsValidation(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "interruptions"):
             calculate_metrics(invalid)
+    
+    def test_rejects_fractional_event_counts(self):
+        for column in ["interruptions", "context_switches"]:
+            with self.subTest(column=column):
+                invalid = self.data.copy()
+                invalid[column] = invalid[column].astype(float)
+                invalid.loc[0, column] = 1.5
 
+                with self.assertRaisesRegex(
+                    ValueError,
+                    "whole-number counts"
+                ):
+                    calculate_metrics(invalid)
+
+    def test_accepts_whole_number_event_counts(self):
+        valid = self.data.copy()
+        valid["interruptions"] = [2.0, 4.0]
+        valid["context_switches"] = [3.0, 6.0]
+
+        result = calculate_metrics(valid)
+
+        self.assertEqual(len(result), 2)
 
 if __name__ == "__main__":
     unittest.main()

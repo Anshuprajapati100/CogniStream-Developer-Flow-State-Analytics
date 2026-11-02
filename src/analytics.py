@@ -1,8 +1,9 @@
-import pandas as pd
+
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
@@ -14,7 +15,6 @@ DATA_FILE = (
 def load_data():
     """Load the cleaned developer activity dataset."""
     return pd.read_csv(DATA_FILE)
-
 
 
 def calculate_metrics(df):
@@ -42,6 +42,7 @@ def calculate_metrics(df):
 
     df = df.copy()
 
+    # Convert required columns to numeric values and validate them.
     for column in required_columns:
         df[column] = pd.to_numeric(
             df[column],
@@ -55,9 +56,11 @@ def calculate_metrics(df):
                 f"{column} must contain finite numeric values."
             )
 
+    # Validate session duration.
     if (df["session_duration_min"] <= 0).any():
         raise ValueError("Session duration must be positive.")
 
+    # Validate coding time.
     if (
         (df["coding_time_min"] < 0)
         | (
@@ -69,12 +72,22 @@ def calculate_metrics(df):
             "Coding time must be between zero and session duration."
         )
 
+    # Validate interruption and context-switch counts.
     for column in ["interruptions", "context_switches"]:
         if (df[column] < 0).any():
             raise ValueError(
                 f"{column} must not contain negative values."
             )
 
+        if not np.equal(
+            df[column],
+            np.floor(df[column])
+        ).all():
+            raise ValueError(
+                f"{column} must contain whole-number counts."
+            )
+
+    # Calculate developer activity metrics.
     df["coding_activity_ratio"] = (
         df["coding_time_min"]
         / df["session_duration_min"]
@@ -150,21 +163,23 @@ def developer_analysis(df):
 
 
 def save_analytics(df, developer_stats):
+    """Save session analytics and developer summary reports."""
 
     output_dir = PROJECT_ROOT / "reports"
     output_dir.mkdir(parents=True, exist_ok=True)
 
     df.to_csv(
         output_dir / "session_analytics.csv",
-        index=False
+        index=False,
     )
 
     developer_stats.to_csv(
-        output_dir / "developer_summary.csv"
+        output_dir / "developer_summary.csv",
     )
 
 
 def main():
+    """Run the complete analytics process."""
 
     print("\n===== CogniStream Analytics =====")
 
