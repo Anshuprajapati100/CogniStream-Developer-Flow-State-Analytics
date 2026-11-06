@@ -9,6 +9,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.insights import generate_insights
 from src.live_data import load_combined_data
+from src.dashboard_filters import filter_sessions
 from database.db import (
     initialize_database,
     add_developer,
@@ -702,13 +703,12 @@ with st.sidebar:
 
 
 # Apply filters
-filtered = df[df["developer_id"].isin(selected_developers)].copy()
 
-if len(selected_dates) == 2:
-    start_date, end_date = selected_dates
-    filtered = filtered[
-        filtered["session_date"].dt.date.between(start_date, end_date)
-    ]
+filtered = filter_sessions(
+    df,
+    selected_developers,
+    selected_dates,
+)
 
 # Display sidebar stats summary
 with st.sidebar:
