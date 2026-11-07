@@ -1015,6 +1015,57 @@ with tab2:
         apply_modern_chart_theme(fig_dev_flow, height=360)
         st.plotly_chart(fig_dev_flow, width="stretch")
 
+    st.markdown(
+        """
+        <div class="section-header">
+            <span class="section-pill">Developer Comparison</span>
+            <h3 class="section-heading">Focus vs Cognitive Load by Developer</h3>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    rating_comparison = developer_stats[
+        ["developer_id", "avg_focus", "avg_load"]
+    ].melt(
+        id_vars="developer_id",
+        value_vars=["avg_focus", "avg_load"],
+        var_name="metric",
+        value_name="average_rating",
+    )
+
+    rating_comparison["metric"] = rating_comparison["metric"].map({
+        "avg_focus": "Average Focus",
+        "avg_load": "Average Cognitive Load",
+    })
+
+    fig_dev_ratings = px.bar(
+        rating_comparison,
+        x="developer_id",
+        y="average_rating",
+        color="metric",
+        barmode="group",
+        color_discrete_map={
+            "Average Focus": "#06b6d4",
+            "Average Cognitive Load": "#f59e0b",
+        },
+        title="Average Focus and Cognitive Load Ratings",
+        category_orders={
+            "metric": ["Average Focus", "Average Cognitive Load"]
+        },
+    )
+
+    fig_dev_ratings.update_yaxes(
+        title="Average Rating (1–5)",
+        range=[0, 5],
+        dtick=1,
+    )
+    fig_dev_ratings.update_traces(
+        hovertemplate="<b>%{x}</b><br>%{fullData.name}: %{y:.2f}/5<extra></extra>"
+    )
+    apply_modern_chart_theme(fig_dev_ratings, height=380)
+    st.plotly_chart(fig_dev_ratings, width="stretch")
+
 
 # ==============================================================================
 # TAB 3: FLOW AND COGNITIVE LOAD
