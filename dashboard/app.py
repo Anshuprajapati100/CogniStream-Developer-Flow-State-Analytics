@@ -1066,6 +1066,87 @@ with tab2:
     apply_modern_chart_theme(fig_dev_ratings, height=380)
     st.plotly_chart(fig_dev_ratings, width="stretch")
 
+    st.markdown(
+        """
+        <div class="section-header">
+            <span class="section-pill">Temporal Developer Analysis</span>
+            <h3 class="section-heading">Developer Flow Indicator Trend Over Time</h3>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    daily_flow = filtered.copy()
+    daily_flow["session_date"] = pd.to_datetime(
+        daily_flow["session_date"]
+    ).dt.normalize()
+
+    daily_flow = (
+        daily_flow.groupby(
+            ["session_date", "developer_id"], as_index=False
+        )
+        .agg(avg_flow_score=("flow_indicator_score", "mean"))
+    )
+
+    active_days = daily_flow.groupby("developer_id")[
+        "session_date"
+    ].nunique()
+
+    eligible_developers = active_days[active_days >= 2].index.tolist()
+
+    if eligible_developers:
+        trend_data = daily_flow[
+            daily_flow["developer_id"].isin(eligible_developers)
+        ].copy()
+
+        fig_flow_trend = px.line(
+            trend_data,
+            x="session_date",
+            y="avg_flow_score",
+            color="developer_id",
+            markers=True,
+            title="Daily Average Flow Indicator Score by Developer",
+            labels={
+                "session_date": "Session Date",
+                "avg_flow_score": "Average Flow Indicator Score",
+                "developer_id": "Developer",
+            },
+        )
+
+        fig_flow_trend.update_yaxes(
+            title="Average Flow Indicator Score",
+            range=[0, 100],
+        )
+
+        fig_flow_trend.update_traces(
+            line=dict(width=2.5),
+            marker=dict(size=7),
+            hovertemplate=(
+                "<b>%{fullData.name}</b>"
+                "<br>Date: %{x|%b %d, %Y}"
+                "<br>Average Flow Score: %{y:.2f}"
+                "<extra></extra>"
+            ),
+        )
+
+        apply_modern_chart_theme(fig_flow_trend, height=420)
+        st.plotly_chart(fig_flow_trend, width="stretch")
+
+        excluded = sorted(
+            set(daily_flow["developer_id"].dropna())
+            - set(eligible_developers)
+        )
+        if excluded:
+            st.caption(
+                "Excluded from trend analysis due to fewer than "
+                "2 active days: " + ", ".join(excluded)
+            )
+    else:
+        st.info(
+            "Not enough date coverage to display developer flow trends. "
+            "Select a wider date range or adjust the filters."
+        )
+
 
 # ==============================================================================
 # TAB 3: FLOW AND COGNITIVE LOAD
