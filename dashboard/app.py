@@ -9,7 +9,10 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from src.insights import generate_insights
 from src.live_data import load_combined_data
-from src.dashboard_filters import filter_sessions
+from src.dashboard_filters import (
+    filter_sessions,
+    calculate_developer_metric_trends,
+)
 from database.db import (
     initialize_database,
     add_developer,
@@ -1070,87 +1073,104 @@ with tab2:
         """
         <div class="section-header">
             <span class="section-pill">Temporal Developer Analysis</span>
-            <h3 class="section-heading">Developer Flow Indicator Trend Over Time</h3>
+            <h3 class="section-heading">Developer Metric Trend Analysis</h3>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    daily_flow = filtered.copy()
-    daily_flow["session_date"] = pd.to_datetime(
-        daily_flow["session_date"]
-    ).dt.normalize()
+    metric_options = {
+        "Flow Indicator Score": {
+            "column": "flow_indicator_score",
+            "axis_title": "Average Flow Indicator Score",
+            "chart_title": "Daily Average Flow Indicator Score by Developer",
+            "range": [0, 100],
+            "hover_label": "Average Flow Score",
+        },
+        "Focus Rating": {
+            "column": "focus_rating",
+            "axis_title": "Average Focus Rating (1–5)",
+            "chart_title": "Daily Average Focus Rating by Developer",
+            "range": [1, 5],
+            "hover_label": "Average Focus Rating",
+        },
+        "Cognitive Load Rating": {
+            "column": "cognitive_load_rating",
+            "axis_title": "Average Cognitive Load Rating (1–5)",
+            "chart_title": "Daily Average Cognitive Load Rating by Developer",
+            "range": [1, 5],
+            "hover_label": "Average Cognitive Load",
+        },
+    }
 
-    daily_flow = (
-        daily_flow.groupby(
-            ["session_date", "developer_id"], as_index=False
-        )
-        .agg(avg_flow_score=("flow_indicator_score", "mean"))
+    selected_metric = st.selectbox(
+        "Select Trend Metric",
+        options=list(metric_options),
+        key="developer_trend_metric",
     )
 
-    active_days = daily_flow.groupby("developer_id")[
-        "session_date"
-    ].nunique()
+    metric_config = metric_options[selected_metric]
 
-    eligible_developers = active_days[active_days >= 2].index.tolist()
+    trend_data = calculate_developer_metric_trends(
+        filtered,
+        metric_config["column"],
+    )
 
-    if eligible_developers:
-        trend_data = daily_flow[
-            daily_flow["developer_id"].isin(eligible_developers)
-        ].copy()
-
-        fig_flow_trend = px.line(
+    if not trend_data.empty:
+        fig_metric_trend = px.line(
             trend_data,
             x="session_date",
-            y="avg_flow_score",
+            y="average_metric",
             color="developer_id",
             markers=True,
-            title="Daily Average Flow Indicator Score by Developer",
+            title=metric_config["chart_title"],
             labels={
                 "session_date": "Session Date",
-                "avg_flow_score": "Average Flow Indicator Score",
+                "average_metric": metric_config["axis_title"],
                 "developer_id": "Developer",
             },
         )
 
-        fig_flow_trend.update_yaxes(
-            title="Average Flow Indicator Score",
-            range=[0, 100],
+        fig_metric_trend.update_yaxes(
+            title=metric_config["axis_title"],
+            range=metric_config["range"],
         )
 
-        fig_flow_trend.update_traces(
+        fig_metric_trend.update_traces(
             line=dict(width=2.5),
             marker=dict(size=7),
             hovertemplate=(
                 "<b>%{fullData.name}</b>"
                 "<br>Date: %{x|%b %d, %Y}"
-                "<br>Average Flow Score: %{y:.2f}"
-                "<extra></extra>"
+                f"<br>{metric_config['hover_label']}: "
+                "%{y:.2f}<extra></extra>"
             ),
         )
 
-        apply_modern_chart_theme(fig_flow_trend, height=420)
-        st.plotly_chart(fig_flow_trend, width="stretch")
+        apply_modern_chart_theme(fig_metric_trend, height=420)
+        st.plotly_chart(fig_metric_trend, width="stretch")
 
-        excluded = sorted(
-            set(daily_flow["developer_id"].dropna())
-            - set(eligible_developers)
+        eligible_developers = set(
+            trend_data["developer_id"].unique()
         )
+        all_developers = set(
+            filtered["developer_id"].dropna().unique()
+        )
+        excluded = sorted(all_developers - eligible_developers)
+
         if excluded:
             st.caption(
                 "Excluded from trend analysis due to fewer than "
-                "2 active days: " + ", ".join(excluded)
+                "2 valid active days for this metric: "
+                + ", ".join(excluded)
             )
     else:
         st.info(
-            "Not enough date coverage to display developer flow trends. "
+            "Not enough date coverage to display developer trends. "
             "Select a wider date range or adjust the filters."
         )
 
 
-# ==============================================================================
-# TAB 3: FLOW AND COGNITIVE LOAD
-# ==============================================================================
 with tab3:
     st.markdown(
         """
