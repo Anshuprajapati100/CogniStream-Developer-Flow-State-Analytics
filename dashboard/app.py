@@ -12,6 +12,7 @@ from src.live_data import load_combined_data
 from src.dashboard_filters import (
     filter_sessions,
     calculate_developer_metric_trends,
+    calculate_developer_cohort_insights,
 )
 from database.db import (
     initialize_database,
@@ -1395,6 +1396,41 @@ with tab5:
 # ==============================================================================
 # TAB 6: DEVELOPER MANAGEMENT
 # ==============================================================================
+    st.markdown("---")
+    st.markdown(
+        """
+        <div class="section-header">
+            <span class="section-pill">Cohort Comparison</span>
+            <h3 class="section-heading">Developer Cohort Insights</h3>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Compares each developer's average metrics with the average "
+        "across developers in the currently filtered cohort."
+    )
+
+    cohort_results = calculate_developer_cohort_insights(filtered)
+
+    if cohort_results.empty:
+        st.info(
+            "Not enough developer data is available for cohort comparison."
+        )
+    else:
+        st.dataframe(
+            cohort_results,
+            hide_index=True,
+            width="stretch",
+        )
+        st.caption(
+            "Above cohort / Below cohort indicate relative differences, "
+            "not performance judgments. Near cohort uses a tolerance of "
+            "±5 flow points or ±0.2 rating points. Cognitive-load ratings "
+            "are descriptive and are not interpreted as good or bad."
+        )
+
+
 with tab6:
     st.markdown(
         """

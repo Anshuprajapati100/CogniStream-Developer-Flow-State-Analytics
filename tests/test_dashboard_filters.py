@@ -6,6 +6,7 @@ import pandas as pd
 from src.dashboard_filters import filter_sessions
 
 from src.dashboard_filters import calculate_developer_metric_trends
+from src.dashboard_filters import calculate_developer_cohort_insights
 
 class TestDeveloperMetricTrends(unittest.TestCase):
 
@@ -137,3 +138,74 @@ class TestDashboardFilters(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestDeveloperCohortInsights(unittest.TestCase):
+
+    def setUp(self):
+        self.df = pd.DataFrame({
+            "developer_id": [
+                "DEV001", "DEV001",
+                "DEV002", "DEV002",
+                "DEV003", "DEV003",
+            ],
+            "flow_indicator_score": [
+                80, 80, 60, 60, 70, 70,
+            ],
+            "focus_rating": [
+                5, 5, 3, 3, 4, 4,
+            ],
+            "cognitive_load_rating": [
+                4, 4, 2, 2, 3, 3,
+            ],
+        })
+
+    def test_calculates_developer_and_cohort_averages(self):
+        result = calculate_developer_cohort_insights(self.df)
+
+        dev001 = result.set_index("developer_id").loc["DEV001"]
+
+        self.assertEqual(dev001["avg_flow"], 80.0)
+        self.assertEqual(dev001["cohort_avg_flow"], 70.0)
+        self.assertEqual(dev001["sessions"], 2)
+
+    def test_classifies_developers_above_near_and_below_cohort(self):
+        result = calculate_developer_cohort_insights(self.df)
+        result = result.set_index("developer_id")
+
+        self.assertEqual(
+            result.loc["DEV001", "flow_comparison"],
+            "Above cohort",
+        )
+        self.assertEqual(
+            result.loc["DEV002", "flow_comparison"],
+            "Below cohort",
+        )
+        self.assertEqual(
+            result.loc["DEV003", "flow_comparison"],
+            "Near cohort",
+        )
+
+    def test_handles_missing_metric_values(self):
+        data = self.df.copy()
+        data["focus_rating"] = float("nan")
+
+        result = calculate_developer_cohort_insights(data)
+
+        self.assertTrue(
+            (result["focus_comparison"] == "Insufficient data").all()
+        )
+
+    def test_empty_dataset(self):
+        result = calculate_developer_cohort_insights(
+            self.df.iloc[0:0]
+        )
+
+        self.assertTrue(result.empty)
+        self.assertIn("flow_comparison", result.columns)
+
+    def test_rejects_missing_columns(self):
+        with self.assertRaises(ValueError):
+            calculate_developer_cohort_insights(
+                self.df.drop(columns=["focus_rating"])
+            )
