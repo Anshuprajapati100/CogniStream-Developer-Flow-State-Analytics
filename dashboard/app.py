@@ -13,6 +13,7 @@ from src.dashboard_filters import (
     filter_sessions,
     calculate_developer_metric_trends,
     calculate_developer_cohort_insights,
+    calculate_developer_session_consistency,
 )
 from database.db import (
     initialize_database,
@@ -1428,6 +1429,48 @@ with tab5:
             "not performance judgments. Near cohort uses a tolerance of "
             "±5 flow points or ±0.2 rating points. Cognitive-load ratings "
             "are descriptive and are not interpreted as good or bad."
+        )
+
+
+    st.markdown("---")
+    st.markdown(
+        """
+        <div class="section-header">
+            <span class="section-pill">Session Analysis</span>
+            <h3 class="section-heading">Developer Session Consistency</h3>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Examines variation in session-level flow scores for each developer "
+        "within the currently filtered dataset."
+    )
+
+    consistency_results = calculate_developer_session_consistency(filtered)
+
+    if consistency_results.empty:
+        st.info(
+            "Not enough valid session data is available for consistency analysis."
+        )
+    else:
+        st.dataframe(
+            consistency_results.round({
+                "avg_flow": 2,
+                "flow_std_dev": 2,
+                "min_flow": 2,
+                "max_flow": 2,
+                "flow_range": 2,
+            }),
+            hide_index=True,
+            width="stretch",
+        )
+        st.caption(
+            "Classification uses illustrative population standard deviation "
+            "thresholds: Consistent (≤5), Moderate variation (>5 to 10), "
+            "and High variation (>10). Developers with fewer than two valid "
+            "sessions are marked Insufficient data. These categories describe "
+            "observed variation and are not performance or psychological judgments."
         )
 
 

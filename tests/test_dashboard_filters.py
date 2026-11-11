@@ -7,6 +7,7 @@ from src.dashboard_filters import filter_sessions
 
 from src.dashboard_filters import calculate_developer_metric_trends
 from src.dashboard_filters import calculate_developer_cohort_insights
+from src.dashboard_filters import calculate_developer_session_consistency
 
 class TestDeveloperMetricTrends(unittest.TestCase):
 
@@ -208,4 +209,99 @@ class TestDeveloperCohortInsights(unittest.TestCase):
         with self.assertRaises(ValueError):
             calculate_developer_cohort_insights(
                 self.df.drop(columns=["focus_rating"])
+            )
+
+
+class TestDeveloperSessionConsistency(unittest.TestCase):
+
+    def setUp(self):
+        self.df = pd.DataFrame({
+            "developer_id": [
+                "DEV001", "DEV001", "DEV001",
+                "DEV002", "DEV002", "DEV003",
+            ],
+            "flow_indicator_score": [
+                70, 72, 74,
+                50, 80, 85,
+            ],
+        })
+
+    def test_calculates_session_statistics(self):
+        result = calculate_developer_session_consistency(
+            self.df
+        )
+
+        dev1 = result[
+            result["developer_id"] == "DEV001"
+        ].iloc[0]
+
+        self.assertEqual(dev1["sessions"], 3)
+        self.assertEqual(dev1["avg_flow"], 72)
+        self.assertAlmostEqual(
+            dev1["flow_std_dev"],
+            1.632993,
+            places=5,
+        )
+        self.assertEqual(dev1["min_flow"], 70)
+        self.assertEqual(dev1["max_flow"], 74)
+        self.assertEqual(dev1["flow_range"], 4)
+
+    def test_classifies_consistency_levels(self):
+        result = calculate_developer_session_consistency(
+            self.df
+        )
+
+        labels = result.set_index(
+            "developer_id"
+        )["consistency"]
+
+        self.assertEqual(labels["DEV001"], "Consistent")
+        self.assertEqual(labels["DEV002"], "High variation")
+        self.assertEqual(
+            labels["DEV003"],
+            "Insufficient data",
+        )
+
+    def test_classifies_moderate_variation(self):
+        df = pd.DataFrame({
+            "developer_id": ["DEV001", "DEV001"],
+            "flow_indicator_score": [50, 62],
+        })
+
+        result = calculate_developer_session_consistency(df)
+
+        self.assertEqual(
+            result.iloc[0]["consistency"],
+            "Moderate variation",
+        )
+
+    def test_handles_missing_and_non_numeric_values(self):
+        df = pd.DataFrame({
+            "developer_id": [
+                "DEV001", "DEV001", "DEV001",
+            ],
+            "flow_indicator_score": [
+                70, None, "invalid",
+            ],
+        })
+
+        result = calculate_developer_session_consistency(df)
+
+        self.assertEqual(result.iloc[0]["sessions"], 1)
+        self.assertEqual(
+            result.iloc[0]["consistency"],
+            "Insufficient data",
+        )
+
+    def test_empty_dataset(self):
+        result = calculate_developer_session_consistency(
+            self.df.iloc[0:0]
+        )
+
+        self.assertTrue(result.empty)
+
+    def test_rejects_missing_columns(self):
+        with self.assertRaises(ValueError):
+            calculate_developer_session_consistency(
+                self.df.drop(columns=["flow_indicator_score"])
             )

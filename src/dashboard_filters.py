@@ -213,3 +213,94 @@ def calculate_developer_cohort_insights(df):
     return result[result_columns].sort_values(
         "developer_id"
     ).reset_index(drop=True)
+
+
+def calculate_developer_session_consistency(df):
+    """Summarize session-level flow-score variation for each developer."""
+
+    required_columns = {
+        "developer_id",
+        "flow_indicator_score",
+    }
+
+    missing_columns = required_columns - set(df.columns)
+
+    if missing_columns:
+        raise ValueError(
+            f"Missing required columns: {sorted(missing_columns)}"
+        )
+
+    result_columns = [
+        "developer_id",
+        "sessions",
+        "avg_flow",
+        "flow_std_dev",
+        "min_flow",
+        "max_flow",
+        "flow_range",
+        "consistency",
+    ]
+
+    if df.empty:
+        return pd.DataFrame(columns=result_columns)
+
+    data = df[
+        ["developer_id", "flow_indicator_score"]
+    ].copy()
+
+    data["flow_indicator_score"] = pd.to_numeric(
+        data["flow_indicator_score"],
+        errors="coerce",
+    ).replace(
+        [float("inf"), float("-inf")],
+        float("nan"),
+    )
+
+    data = data.dropna(
+        subset=["developer_id", "flow_indicator_score"]
+    )
+
+    if data.empty:
+        return pd.DataFrame(columns=result_columns)
+
+    result = (
+        data.groupby("developer_id")
+        .agg(
+            sessions=("flow_indicator_score", "count"),
+            avg_flow=("flow_indicator_score", "mean"),
+            flow_std_dev=(
+                "flow_indicator_score",
+                lambda values: values.std(ddof=0),
+            ),
+            min_flow=("flow_indicator_score", "min"),
+            max_flow=("flow_indicator_score", "max"),
+        )
+        .reset_index()
+    )
+
+    result["flow_range"] = result["max_flow"] - result["min_flow"]
+
+    result["consistency"] = "Insufficient data"
+
+    enough_data = result["sessions"] >= 2
+
+    result.loc[
+        enough_data & (result["flow_std_dev"] <= 5),
+        "consistency",
+    ] = "Consistent"
+
+    result.loc[
+        enough_data
+        & (result["flow_std_dev"] > 5)
+        & (result["flow_std_dev"] <= 10),
+        "consistency",
+    ] = "Moderate variation"
+
+    result.loc[
+        enough_data & (result["flow_std_dev"] > 10),
+        "consistency",
+    ] = "High variation"
+
+    return result[result_columns].sort_values(
+        "developer_id"
+    ).reset_index(drop=True)
