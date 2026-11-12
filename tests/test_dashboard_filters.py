@@ -305,3 +305,117 @@ class TestDeveloperSessionConsistency(unittest.TestCase):
             calculate_developer_session_consistency(
                 self.df.drop(columns=["flow_indicator_score"])
             )
+
+
+class TestDeveloperWorkloadBalance(unittest.TestCase):
+
+    def setUp(self):
+        self.df = pd.DataFrame({
+            "developer_id": [
+                "DEV001", "DEV001", "DEV002", "DEV002", "DEV003",
+            ],
+            "session_id": [
+                "S001", "S002", "S003", "S004", "S005",
+            ],
+            "coding_time_min": [
+                60, 120, 90, 90, 140,
+            ],
+        })
+
+    def test_calculates_workload_statistics(self):
+        from src.dashboard_filters import calculate_developer_workload_balance
+
+        result = calculate_developer_workload_balance(self.df)
+        dev1 = result.set_index("developer_id").loc["DEV001"]
+
+        self.assertEqual(dev1["sessions"], 2)
+        self.assertEqual(dev1["coding_minutes"], 180)
+        self.assertEqual(dev1["coding_hours"], 3)
+        self.assertEqual(dev1["avg_coding_minutes"], 90)
+        self.assertEqual(dev1["session_share_pct"], 40)
+        self.assertAlmostEqual(dev1["coding_time_share_pct"], 36)
+        self.assertAlmostEqual(dev1["share_gap_pp"], -4)
+
+    def test_calculates_share_gap_for_all_developers(self):
+        from src.dashboard_filters import calculate_developer_workload_balance
+
+        result = calculate_developer_workload_balance(self.df)
+        gaps = result.set_index("developer_id")["share_gap_pp"]
+
+        self.assertAlmostEqual(gaps["DEV001"], -4)
+        self.assertAlmostEqual(gaps["DEV002"], -4)
+        self.assertAlmostEqual(gaps["DEV003"], 8)
+
+    def test_handles_missing_and_non_numeric_values(self):
+        from src.dashboard_filters import calculate_developer_workload_balance
+
+        df = pd.DataFrame({
+            "developer_id": ["DEV001", "DEV001", "DEV002"],
+            "session_id": ["S001", "S002", "S003"],
+            "coding_time_min": [60, None, "invalid"],
+        })
+
+        result = calculate_developer_workload_balance(df)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result.iloc[0]["sessions"], 1)
+        self.assertEqual(result.iloc[0]["coding_minutes"], 60)
+
+    def test_excludes_negative_and_infinite_values(self):
+        from src.dashboard_filters import calculate_developer_workload_balance
+
+        df = pd.DataFrame({
+            "developer_id": ["DEV001", "DEV001", "DEV002"],
+            "session_id": ["S001", "S002", "S003"],
+            "coding_time_min": [60, -10, float("inf")],
+        })
+
+        result = calculate_developer_workload_balance(df)
+
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result.iloc[0]["sessions"], 1)
+
+    def test_empty_dataset(self):
+        from src.dashboard_filters import calculate_developer_workload_balance
+
+        result = calculate_developer_workload_balance(
+            self.df.iloc[0:0]
+        )
+
+        self.assertTrue(result.empty)
+        self.assertIn("share_gap_pp", result.columns)
+
+    def test_zero_total_coding_time(self):
+        from src.dashboard_filters import calculate_developer_workload_balance
+
+        df = pd.DataFrame({
+            "developer_id": ["DEV001", "DEV002"],
+            "session_id": ["S001", "S002"],
+            "coding_time_min": [0, 0],
+        })
+
+        result = calculate_developer_workload_balance(df)
+
+        self.assertTrue(result.empty)
+
+    def test_rejects_missing_columns(self):
+        from src.dashboard_filters import calculate_developer_workload_balance
+
+        with self.assertRaises(ValueError):
+            calculate_developer_workload_balance(
+                self.df.drop(columns=["coding_time_min"])
+            )
+
+    def test_ignores_duplicate_session_ids(self):
+        from src.dashboard_filters import calculate_developer_workload_balance
+
+        df = pd.concat(
+            [self.df, self.df.iloc[[0]]],
+            ignore_index=True,
+        )
+
+        result = calculate_developer_workload_balance(df)
+        dev1 = result.set_index("developer_id").loc["DEV001"]
+
+        self.assertEqual(dev1["sessions"], 2)
+        self.assertEqual(dev1["coding_minutes"], 180)

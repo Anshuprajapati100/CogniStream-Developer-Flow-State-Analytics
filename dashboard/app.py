@@ -14,6 +14,7 @@ from src.dashboard_filters import (
     calculate_developer_metric_trends,
     calculate_developer_cohort_insights,
     calculate_developer_session_consistency,
+    calculate_developer_workload_balance,
 )
 from database.db import (
     initialize_database,
@@ -1471,6 +1472,57 @@ with tab5:
             "and High variation (>10). Developers with fewer than two valid "
             "sessions are marked Insufficient data. These categories describe "
             "observed variation and are not performance or psychological judgments."
+        )
+
+
+    st.markdown("---")
+    st.markdown(
+        """
+        <div class="section-header">
+            <span class="section-pill">Workload Analysis</span>
+            <h3 class="section-heading">Developer Workload Balance</h3>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Compares each developer's share of recorded sessions with "
+        "their share of total coding time in the filtered dataset."
+    )
+
+    workload_results = calculate_developer_workload_balance(filtered)
+
+    if workload_results.empty:
+        st.info(
+            "No valid coding-time data is available for workload balance analysis."
+        )
+    else:
+        st.dataframe(
+            workload_results.round({
+                "coding_hours": 2,
+                "avg_coding_minutes": 2,
+                "session_share_pct": 2,
+                "coding_time_share_pct": 2,
+                "share_gap_pp": 2,
+            }),
+            hide_index=True,
+            width="stretch",
+        )
+
+        st.markdown("#### Session Share vs Coding-Time Share")
+        st.bar_chart(
+            workload_results.set_index("developer_id")[
+                ["session_share_pct", "coding_time_share_pct"]
+            ],
+            width="stretch",
+        )
+
+        st.caption(
+            "Share gap (percentage points) = coding-time share minus session "
+            "share. A positive gap means a developer contributes a larger "
+            "share of coding time than their share of sessions; a negative "
+            "gap means the reverse. These are descriptive workload indicators, "
+            "not performance judgments."
         )
 
 

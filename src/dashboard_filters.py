@@ -304,3 +304,84 @@ def calculate_developer_session_consistency(df):
     return result[result_columns].sort_values(
         "developer_id"
     ).reset_index(drop=True)
+# Python code goes here
+
+
+def calculate_developer_workload_balance(df):
+    """Compare each developer's coding-time share with their session share."""
+    required_columns = {
+        "developer_id",
+        "session_id",
+        "coding_time_min",
+    }
+    missing_columns = required_columns - set(df.columns)
+
+    if missing_columns:
+        raise ValueError(
+            f"Missing required columns: {sorted(missing_columns)}"
+        )
+
+    result_columns = [
+        "developer_id",
+        "sessions",
+        "coding_minutes",
+        "coding_hours",
+        "avg_coding_minutes",
+        "session_share_pct",
+        "coding_time_share_pct",
+        "share_gap_pp",
+    ]
+
+    if df.empty:
+        return pd.DataFrame(columns=result_columns)
+
+    data = df[
+        ["developer_id", "session_id", "coding_time_min"]
+    ].copy()
+
+    data["coding_time_min"] = pd.to_numeric(
+        data["coding_time_min"],
+        errors="coerce",
+    ).replace([float("inf"), float("-inf")], float("nan"))
+
+    data = data.dropna(
+        subset=["developer_id", "session_id", "coding_time_min"]
+    )
+    data = data[data["coding_time_min"] >= 0]
+
+    if data.empty:
+        return pd.DataFrame(columns=result_columns)
+
+    data = data.drop_duplicates(subset=["session_id"])
+
+    total_sessions = len(data)
+    total_coding_minutes = data["coding_time_min"].sum()
+
+    if total_coding_minutes <= 0:
+        return pd.DataFrame(columns=result_columns)
+
+    result = (
+        data.groupby("developer_id")
+        .agg(
+            sessions=("session_id", "count"),
+            coding_minutes=("coding_time_min", "sum"),
+            avg_coding_minutes=("coding_time_min", "mean"),
+        )
+        .reset_index()
+    )
+
+    result["coding_hours"] = result["coding_minutes"] / 60
+    result["session_share_pct"] = (
+        result["sessions"] / total_sessions * 100
+    )
+    result["coding_time_share_pct"] = (
+        result["coding_minutes"] / total_coding_minutes * 100
+    )
+    result["share_gap_pp"] = (
+        result["coding_time_share_pct"]
+        - result["session_share_pct"]
+    )
+
+    return result[result_columns].sort_values(
+        "developer_id"
+    ).reset_index(drop=True)
