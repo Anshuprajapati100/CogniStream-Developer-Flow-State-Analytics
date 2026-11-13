@@ -12,6 +12,7 @@ from src.live_data import load_combined_data
 from src.dashboard_filters import (
     filter_sessions,
     calculate_developer_metric_trends,
+    calculate_developer_trend_direction,
     calculate_developer_cohort_insights,
     calculate_developer_session_consistency,
     calculate_developer_workload_balance,
@@ -1171,6 +1172,59 @@ with tab2:
         st.info(
             "Not enough date coverage to display developer trends. "
             "Select a wider date range or adjust the filters."
+        )
+
+
+
+    st.markdown("---")
+    st.markdown(
+        """
+        <div class="section-header">
+            <span class="section-pill">Trend Interpretation</span>
+            <h3 class="section-heading">Developer Trend Direction & Change</h3>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Compares each eligible developer's first and latest daily "
+        "average for the selected metric."
+    )
+
+    direction_results = calculate_developer_trend_direction(
+        filtered,
+        metric_config["column"],
+    )
+
+    if direction_results.empty:
+        st.info(
+            "Not enough valid active-day data is available "
+            "for trend direction analysis."
+        )
+    else:
+        st.dataframe(
+            direction_results.round({
+                "first_average": 2,
+                "latest_average": 2,
+                "absolute_change": 2,
+                "percentage_change": 2,
+            }),
+            hide_index=True,
+            width="stretch",
+        )
+
+        st.markdown("#### First-to-Latest Metric Change")
+        st.bar_chart(
+            direction_results.set_index("developer_id")[
+                ["absolute_change"]
+            ],
+            width="stretch",
+        )
+
+        st.caption(
+            "Increasing and Decreasing describe numerical changes only. "
+            "They do not automatically indicate better or worse outcomes. "
+            "Percentage change is unavailable when the first average is zero."
         )
 
 

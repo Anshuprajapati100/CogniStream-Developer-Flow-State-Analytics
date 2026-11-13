@@ -385,3 +385,72 @@ def calculate_developer_workload_balance(df):
     return result[result_columns].sort_values(
         "developer_id"
     ).reset_index(drop=True)
+
+
+def calculate_developer_trend_direction(
+    df,
+    metric_column,
+    min_active_days=2,
+    stable_threshold=0.01,
+):
+    """Summarize first-to-latest daily metric changes by developer."""
+
+    trend_data = calculate_developer_metric_trends(
+        df,
+        metric_column,
+        min_active_days=min_active_days,
+    )
+
+    result_columns = [
+        "developer_id",
+        "active_days",
+        "first_average",
+        "latest_average",
+        "absolute_change",
+        "percentage_change",
+        "trend_direction",
+    ]
+
+    if trend_data.empty:
+        return pd.DataFrame(columns=result_columns)
+
+    if stable_threshold < 0:
+        raise ValueError("stable_threshold cannot be negative")
+
+    trend_data = trend_data.sort_values(
+        ["developer_id", "session_date"]
+    )
+
+    result = (
+        trend_data.groupby("developer_id")
+        .agg(
+            active_days=("session_date", "nunique"),
+            first_average=("average_metric", "first"),
+            latest_average=("average_metric", "last"),
+        )
+        .reset_index()
+    )
+
+    result["absolute_change"] = (
+        result["latest_average"] - result["first_average"]
+    )
+
+    result["percentage_change"] = (
+        result["absolute_change"]
+        .div(result["first_average"].abs().replace(0, float("nan")))
+        * 100
+    )
+
+    result["trend_direction"] = "Stable"
+    result.loc[
+        result["absolute_change"] > stable_threshold,
+        "trend_direction",
+    ] = "Increasing"
+    result.loc[
+        result["absolute_change"] < -stable_threshold,
+        "trend_direction",
+    ] = "Decreasing"
+
+    return result[result_columns].sort_values(
+        "developer_id"
+    ).reset_index(drop=True)

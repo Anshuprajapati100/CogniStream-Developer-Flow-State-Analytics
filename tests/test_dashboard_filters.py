@@ -419,3 +419,90 @@ class TestDeveloperWorkloadBalance(unittest.TestCase):
 
         self.assertEqual(dev1["sessions"], 2)
         self.assertEqual(dev1["coding_minutes"], 180)
+
+
+class TestDeveloperTrendDirection(unittest.TestCase):
+
+    def setUp(self):
+        self.df = pd.DataFrame({
+            "session_date": pd.to_datetime([
+                "2026-11-01", "2026-11-02",
+                "2026-11-03", "2026-11-01",
+                "2026-11-02", "2026-11-03",
+                "2026-11-01", "2026-11-02",
+                "2026-11-01",
+            ]),
+            "developer_id": [
+                "DEV001", "DEV001", "DEV001",
+                "DEV002", "DEV002", "DEV002",
+                "DEV003", "DEV003", "DEV004",
+            ],
+            "flow_indicator_score": [
+                60, 70, 80,
+                80, 70, 60,
+                50, 50,
+                90,
+            ],
+        })
+
+    def test_identifies_increasing_trend(self):
+        from src.dashboard_filters import calculate_developer_trend_direction
+
+        result = calculate_developer_trend_direction(
+            self.df, "flow_indicator_score"
+        )
+        dev1 = result.set_index("developer_id").loc["DEV001"]
+
+        self.assertEqual(dev1["trend_direction"], "Increasing")
+        self.assertEqual(dev1["absolute_change"], 20)
+        self.assertAlmostEqual(dev1["percentage_change"], 100 / 3)
+
+    def test_identifies_decreasing_trend(self):
+        from src.dashboard_filters import calculate_developer_trend_direction
+
+        result = calculate_developer_trend_direction(
+            self.df, "flow_indicator_score"
+        )
+        dev2 = result.set_index("developer_id").loc["DEV002"]
+
+        self.assertEqual(dev2["trend_direction"], "Decreasing")
+        self.assertEqual(dev2["absolute_change"], -20)
+
+    def test_identifies_stable_trend(self):
+        from src.dashboard_filters import calculate_developer_trend_direction
+
+        result = calculate_developer_trend_direction(
+            self.df, "flow_indicator_score"
+        )
+        dev3 = result.set_index("developer_id").loc["DEV003"]
+
+        self.assertEqual(dev3["trend_direction"], "Stable")
+        self.assertEqual(dev3["absolute_change"], 0)
+
+    def test_excludes_developers_with_insufficient_days(self):
+        from src.dashboard_filters import calculate_developer_trend_direction
+
+        result = calculate_developer_trend_direction(
+            self.df, "flow_indicator_score"
+        )
+
+        self.assertNotIn("DEV004", result["developer_id"].tolist())
+
+    def test_rejects_negative_stable_threshold(self):
+        from src.dashboard_filters import calculate_developer_trend_direction
+
+        with self.assertRaises(ValueError):
+            calculate_developer_trend_direction(
+                self.df,
+                "flow_indicator_score",
+                stable_threshold=-1,
+            )
+
+    def test_rejects_missing_columns(self):
+        from src.dashboard_filters import calculate_developer_trend_direction
+
+        with self.assertRaises(ValueError):
+            calculate_developer_trend_direction(
+                self.df.drop(columns=["flow_indicator_score"]),
+                "flow_indicator_score",
+            )
