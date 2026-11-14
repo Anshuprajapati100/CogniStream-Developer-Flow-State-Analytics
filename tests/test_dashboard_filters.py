@@ -506,3 +506,96 @@ class TestDeveloperTrendDirection(unittest.TestCase):
                 self.df.drop(columns=["flow_indicator_score"]),
                 "flow_indicator_score",
             )
+
+
+class TestDeveloperMetricCorrelations(unittest.TestCase):
+    def setUp(self):
+        import pandas as pd
+
+        self.data = pd.DataFrame({
+            "coding_time_min": [10, 20, 30, 40],
+            "idle_time_min": [40, 30, 20, 10],
+            "interruptions": [1, 2, 3, 4],
+            "context_switches": [2, 4, 6, 8],
+            "tasks_completed": [1, 2, 3, 4],
+            "focus_rating": [2, 3, 4, 5],
+            "cognitive_load_rating": [5, 4, 3, 2],
+        })
+
+    def test_calculates_positive_and_negative_correlations(self):
+        from src.dashboard_filters import calculate_developer_metric_correlations
+
+        result = calculate_developer_metric_correlations(self.data)
+
+        self.assertAlmostEqual(
+            result.loc["coding_time_min", "interruptions"], 1.0
+        )
+        self.assertAlmostEqual(
+            result.loc["coding_time_min", "idle_time_min"], -1.0
+        )
+
+    def test_handles_missing_nonnumeric_and_infinite_values(self):
+        from src.dashboard_filters import calculate_developer_metric_correlations
+
+        data = self.data.copy()
+        data["coding_time_min"] = [10, "invalid", 30, float("inf")]
+
+        result = calculate_developer_metric_correlations(data)
+
+        self.assertTrue(
+            result.loc["coding_time_min", "interruptions"] !=
+            result.loc["coding_time_min", "interruptions"]
+        )
+
+    def test_constant_column_returns_nan_correlations(self):
+        from src.dashboard_filters import calculate_developer_metric_correlations
+
+        data = self.data.copy()
+        data["focus_rating"] = [3, 3, 3, 3]
+
+        result = calculate_developer_metric_correlations(data)
+
+        self.assertTrue(
+            result["focus_rating"].drop(labels=["focus_rating"]).isna().all()
+        )
+
+    def test_insufficient_paired_observations_returns_nan(self):
+        from src.dashboard_filters import calculate_developer_metric_correlations
+
+        data = self.data.copy()
+        data.loc[1:, "coding_time_min"] = float("nan")
+
+        result = calculate_developer_metric_correlations(
+            data, min_periods=3
+        )
+
+        self.assertTrue(
+            result.loc["coding_time_min", "interruptions"] !=
+            result.loc["coding_time_min", "interruptions"]
+        )
+
+    def test_empty_dataframe_returns_expected_matrix(self):
+        from src.dashboard_filters import calculate_developer_metric_correlations
+
+        result = calculate_developer_metric_correlations(
+            self.data.iloc[0:0]
+        )
+
+        self.assertEqual(result.shape, (7, 7))
+        self.assertEqual(list(result.index), list(result.columns))
+
+    def test_missing_required_column_raises_value_error(self):
+        from src.dashboard_filters import calculate_developer_metric_correlations
+
+        data = self.data.drop(columns=["focus_rating"])
+
+        with self.assertRaisesRegex(ValueError, "Missing required columns"):
+            calculate_developer_metric_correlations(data)
+
+    def test_min_periods_below_two_raises_value_error(self):
+        from src.dashboard_filters import calculate_developer_metric_correlations
+
+        with self.assertRaisesRegex(ValueError, "at least 2"):
+            calculate_developer_metric_correlations(
+                self.data, min_periods=1
+            )

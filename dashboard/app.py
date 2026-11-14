@@ -16,6 +16,7 @@ from src.dashboard_filters import (
     calculate_developer_cohort_insights,
     calculate_developer_session_consistency,
     calculate_developer_workload_balance,
+    calculate_developer_metric_correlations,
 )
 from database.db import (
     initialize_database,
@@ -1225,6 +1226,55 @@ with tab2:
             "Increasing and Decreasing describe numerical changes only. "
             "They do not automatically indicate better or worse outcomes. "
             "Percentage change is unavailable when the first average is zero."
+        )
+
+
+    st.markdown("---")
+    st.markdown(
+        """
+        <div class="section-header">
+            <span class="section-pill">Relationship Analysis</span>
+            <h3 class="section-heading">Developer Metric Correlation Analysis</h3>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.caption(
+        "Pearson correlation measures linear association between session "
+        "metrics. Only independently recorded telemetry is included. The "
+        "experimental flow indicator score is excluded because it is "
+        "calculated using some of these metrics."
+    )
+
+    correlation_matrix = calculate_developer_metric_correlations(filtered)
+
+    if correlation_matrix.empty:
+        st.info("No session data is available for correlation analysis.")
+    elif correlation_matrix.notna().sum().sum() == 0:
+        st.info(
+            "Not enough paired observations or variation is available "
+            "to calculate correlations. At least 3 paired sessions are required."
+        )
+    else:
+        fig_correlation = px.imshow(
+            correlation_matrix,
+            text_auto=".2f",
+            color_continuous_scale="RdBu",
+            zmin=-1,
+            zmax=1,
+            aspect="auto",
+            title="Pearson Correlation Matrix",
+            labels={"color": "Correlation"},
+        )
+        apply_modern_chart_theme(fig_correlation, height=560)
+        st.plotly_chart(fig_correlation, width="stretch")
+
+        st.caption(
+            "Values range from -1 (negative linear association) to +1 "
+            "(positive linear association). Values near 0 indicate little "
+            "linear association. Correlation does not establish causation. "
+            "Pairs with fewer than 3 valid observations are not displayed."
         )
 
 

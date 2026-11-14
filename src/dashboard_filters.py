@@ -454,3 +454,47 @@ def calculate_developer_trend_direction(
     return result[result_columns].sort_values(
         "developer_id"
     ).reset_index(drop=True)
+
+
+def calculate_developer_metric_correlations(df, min_periods=3):
+    """Calculate Pearson correlations between independent session metrics."""
+    metric_columns = [
+        "coding_time_min",
+        "idle_time_min",
+        "interruptions",
+        "context_switches",
+        "tasks_completed",
+        "focus_rating",
+        "cognitive_load_rating",
+    ]
+
+    if min_periods < 2:
+        raise ValueError("min_periods must be at least 2")
+
+    missing_columns = set(metric_columns) - set(df.columns)
+    if missing_columns:
+        raise ValueError(
+            f"Missing required columns: {sorted(missing_columns)}"
+        )
+
+    if df.empty:
+        return pd.DataFrame(
+            index=metric_columns,
+            columns=metric_columns,
+            dtype=float,
+        )
+
+    data = df[metric_columns].copy()
+
+    for column in metric_columns:
+        data[column] = pd.to_numeric(
+            data[column],
+            errors="coerce",
+        )
+
+    data = data.replace([float("inf"), float("-inf")], float("nan"))
+
+    return data.corr(
+        method="pearson",
+        min_periods=min_periods,
+    )
