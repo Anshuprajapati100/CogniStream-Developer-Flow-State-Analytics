@@ -17,6 +17,7 @@ from src.dashboard_filters import (
     calculate_developer_session_consistency,
     calculate_developer_workload_balance,
     calculate_developer_metric_correlations,
+    calculate_session_disruption_analysis,
 )
 from database.db import (
     initialize_database,
@@ -1378,6 +1379,63 @@ with tab3:
         "💡 **Methodology Note:** The flow score formula incorporates interruption frequency as an inverse factor. "
         "Therefore, this negative correlation reflects internal model mechanics rather than independent causal proof."
     )
+
+    st.subheader("Session Disruption Analysis")
+
+    disruption_data = calculate_session_disruption_analysis(filtered)
+
+    if disruption_data.empty or disruption_data["session_count"].sum() == 0:
+        st.info("No valid session data is available for the selected filters.")
+    else:
+        display_data = disruption_data.rename(columns={
+            "disruption_band": "Interruption Intensity",
+            "session_count": "Sessions",
+            "average_interruptions_per_hour": "Avg Interruptions / Hour",
+            "average_context_switches_per_hour": "Avg Context Switches / Hour",
+            "average_focus_rating": "Avg Focus Rating",
+            "average_cognitive_load_rating": "Avg Cognitive Load",
+            "average_flow_indicator_score": "Avg Flow Score",
+        }).copy()
+
+        numeric_columns = display_data.select_dtypes(include="number").columns
+        display_data[numeric_columns] = display_data[numeric_columns].round(2)
+
+        st.caption(
+            "Fixed reference thresholds calculated from the original 120 synthetic sessions. Dashboard results may also include manually entered sessions. Thresholds: "
+            "Low ≤ 1.2888, Moderate > 1.2888 to ≤ 2.5460, "
+            "High > 2.5460 interruptions per hour. Filters change the "
+            "displayed results, not the thresholds."
+        )
+
+        st.dataframe(display_data, width="stretch", hide_index=True)
+
+        fig_disruption = px.bar(
+            disruption_data,
+            x="disruption_band",
+            y="session_count",
+            color="disruption_band",
+            category_orders={"disruption_band": ["Low", "Moderate", "High"]},
+            color_discrete_map={
+                "Low": "#10b981",
+                "Moderate": "#f59e0b",
+                "High": "#f43f5e",
+            },
+            title="Session Count by Interruption Intensity",
+            labels={
+                "disruption_band": "Interruption Intensity",
+                "session_count": "Number of Sessions",
+            },
+        )
+
+        apply_modern_chart_theme(fig_disruption, height=350)
+        st.plotly_chart(fig_disruption, width="stretch")
+
+        st.info(
+            "These group averages are descriptive, not evidence of causation. "
+            "The flow score already incorporates interruption and "
+            "context-switching components."
+        )
+
 
 
 # ==============================================================================

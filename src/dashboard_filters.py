@@ -498,3 +498,114 @@ def calculate_developer_metric_correlations(df, min_periods=3):
         method="pearson",
         min_periods=min_periods,
     )
+
+
+def calculate_session_disruption_analysis(
+    df,
+    low_threshold=1.2888412674116025,
+    high_threshold=2.5459790840245224,
+):
+    """Summarize session metrics across dataset-derived interruption bands."""
+    import math
+    import pandas as pd
+
+    required_columns = [
+        "session_duration_min",
+        "interruptions",
+        "context_switches",
+        "focus_rating",
+        "cognitive_load_rating",
+        "flow_indicator_score",
+    ]
+
+    result_columns = [
+        "disruption_band",
+        "session_count",
+        "average_interruptions_per_hour",
+        "average_context_switches_per_hour",
+        "average_focus_rating",
+        "average_cognitive_load_rating",
+        "average_flow_indicator_score",
+    ]
+
+    if (
+        not math.isfinite(low_threshold)
+        or not math.isfinite(high_threshold)
+        or low_threshold >= high_threshold
+    ):
+        raise ValueError(
+            "Thresholds must be finite and low_threshold must be "
+            "less than high_threshold"
+        )
+
+    missing_columns = set(required_columns) - set(df.columns)
+    if missing_columns:
+        raise ValueError(
+            f"Missing required columns: {sorted(missing_columns)}"
+        )
+
+    if df.empty:
+        return pd.DataFrame(columns=result_columns)
+
+    data = df[required_columns].copy()
+
+    for column in required_columns:
+        data[column] = pd.to_numeric(data[column], errors="coerce")
+
+    data = data.replace([float("inf"), float("-inf")], float("nan"))
+    data = data.dropna(subset=required_columns)
+
+    data = data[
+        (data["session_duration_min"] > 0)
+        & (data["interruptions"] >= 0)
+        & (data["context_switches"] >= 0)
+    ].copy()
+
+    if data.empty:
+        return pd.DataFrame(columns=result_columns)
+
+    data["interruptions_per_hour"] = (
+        data["interruptions"] / data["session_duration_min"] * 60
+    )
+    data["context_switches_per_hour"] = (
+        data["context_switches"] / data["session_duration_min"] * 60
+    )
+
+    data["disruption_band"] = pd.cut(
+        data["interruptions_per_hour"],
+        bins=[
+            -float("inf"),
+            low_threshold,
+            high_threshold,
+            float("inf"),
+        ],
+        labels=["Low", "Moderate", "High"],
+        include_lowest=True,
+    )
+
+    result = (
+        data.groupby("disruption_band", observed=False)
+        .agg(
+            session_count=("disruption_band", "size"),
+            average_interruptions_per_hour=(
+                "interruptions_per_hour", "mean"
+            ),
+            average_context_switches_per_hour=(
+                "context_switches_per_hour", "mean"
+            ),
+            average_focus_rating=("focus_rating", "mean"),
+            average_cognitive_load_rating=(
+                "cognitive_load_rating", "mean"
+            ),
+            average_flow_indicator_score=(
+                "flow_indicator_score", "mean"
+            ),
+        )
+        .reindex(["Low", "Moderate", "High"])
+        .reset_index()
+        .rename(columns={"disruption_band": "disruption_band"})
+    )
+
+    result["session_count"] = result["session_count"].fillna(0).astype(int)
+
+    return result[result_columns]
